@@ -49,7 +49,7 @@ public class Main {
 			DBManager.simpleSearch(); 
 			break;
 		case 8:
-			
+			DBManager.advancedSearch();
 			break;
 		case 9:
 			System.out.println("Hasta pronto!");

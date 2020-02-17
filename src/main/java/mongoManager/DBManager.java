@@ -1,6 +1,9 @@
 package mongoManager;
 
+import java.util.ArrayList;
+
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import application.Main;
 
@@ -24,13 +27,12 @@ public class DBManager {
 			return;
 		}
 		String nombrePlataforma = null;
-		boolean platformInputOk = false;
 		System.out.println("Introduce el nombre del juego: ");
 		String nombreJuego = Main.sc.nextLine();
 		System.out.println("Introduce el precio del juego: ");
 		double precioJuego = Main.checkDoubleInput();
 		nombrePlataforma = ConnectMongo.askForExistingPlatformName();
-		
+
 		Document plataforma = ConnectMongo.getConsolaByName(nombrePlataforma);
 		Document document = new Document();
 		document.put("nombre", nombreJuego);
@@ -39,7 +41,7 @@ public class DBManager {
 		ConnectMongo.getMongoCollection(ConnectMongo.JUEGOS).insertOne(document);
 		System.out.println("\n\t¡Juego insertado con éxito!\n");
 	}
-	
+
 	public static void updatePlatform() {
 		System.out.println("Introduce la consola a modificar: ");
 		String nombreConsola = ConnectMongo.askForExistingPlatformName();
@@ -48,7 +50,7 @@ public class DBManager {
 		System.out.println("\t2 - Precio.");
 		System.out.println("\t3 - Atrás.");
 		int option = Main.checkIntInput();
-		switch(option) {
+		switch (option) {
 		case 1:
 			System.out.println("Introduce el nuevo nombre:");
 			String nuevoNombre = ConnectMongo.askForNonExistingPlatformName();
@@ -67,7 +69,7 @@ public class DBManager {
 			break;
 		}
 	}
-	
+
 	public static void updateGame() {
 		System.out.println("Introduce el juego a modificar: ");
 		String nombreJuego = ConnectMongo.askForExistingGameName();
@@ -77,7 +79,7 @@ public class DBManager {
 		System.out.println("\t3 - Plataforma");
 		System.out.println("\t4 - Atrás.");
 		int option = Main.checkIntInput();
-		switch(option) {
+		switch (option) {
 		case 1:
 			System.out.println("Introduce el nuevo nombre:");
 			String nuevoNombre = ConnectMongo.askForNonExistingGameName();
@@ -102,10 +104,10 @@ public class DBManager {
 			break;
 		}
 	}
-	
+
 	public static void deleteItem(int collection) {
 		String nombre = null;
-		switch(collection) {
+		switch (collection) {
 		case ConnectMongo.CONSOLAS:
 			System.out.println("Introduce la consola a eliminar (Nombre): ");
 			nombre = ConnectMongo.askForExistingPlatformName();
@@ -117,13 +119,13 @@ public class DBManager {
 		}
 		ConnectMongo.removeItem(collection, nombre);
 	}
-	
+
 	public static void simpleSearch() {
 		System.out.println("Introduce una opcion: ");
 		System.out.println("\t1 - Buscar una consola");
 		System.out.println("\t2 - Buscar un juego");
 		int option = Main.checkIntInput();
-		switch(option) {
+		switch (option) {
 		case 1:
 			option = ConnectMongo.CONSOLAS;
 			break;
@@ -145,10 +147,10 @@ public class DBManager {
 			ConnectMongo.findObject(option, field, doubleValue);
 			break;
 		case "plataforma":
-			if(option == 1) {
+			if (option == ConnectMongo.CONSOLAS) {
 				System.out.println("¡No se puede buscar por plataforma en las plataformas! Volviendo al menú...");
 				return;
-			}else {
+			} else {
 				System.out.println("Introduce la plataforma a buscar: ");
 				Document documentValue = askForPlatformObject();
 				ConnectMongo.findObject(option, field, documentValue);
@@ -159,21 +161,104 @@ public class DBManager {
 		}
 	}
 	
+	public static void advancedSearch() {
+		boolean exit = false;
+		System.out.println("Introduce una opcion: ");
+		System.out.println("\t1 - Buscar una consola");
+		System.out.println("\t2 - Buscar un juego");
+		int option = Main.checkIntInput();
+		switch (option) {
+		case 1:
+			option = ConnectMongo.CONSOLAS;
+			break;
+		case 2:
+			option = ConnectMongo.JUEGOS;
+			break;
+		default:
+			System.out.println("La opción no está en la lista, volviendo al menú...");
+			return;
+		}
+		Bson filter;
+		ArrayList<Bson> filters = new ArrayList<Bson>();
+		Object value = null;
+		String field;
+		int operador;
+		String moreFilters;
+		do {
+			field = askForField();
+			switch (field) {
+			case "nombre":
+				value = askForStringValue();
+				break;
+			case "precio":
+				value = askForDoubleValue();
+				break;
+			case "plataforma":
+				System.out.println("Introduce la plataforma a buscar: ");
+				value = askForPlatformObject();
+				break;
+			}
+			operador = askForAction(value);
+			filter = ConnectMongo.returnFilter(operador, field, value);
+			filters.add(filter);
+			System.out.println("Aplicar más filtros? Escribe 'S' en caso afirmativo, cualquier otro caracter en caso negativo:");
+			moreFilters = Main.sc.nextLine();
+			if(!moreFilters.equalsIgnoreCase("S")) {
+				exit = true;
+			}
+		}while(!exit);
+		
+		ConnectMongo.applyFiltersAndPrint(option, filters);
+	}
+
 	public static String askForField() {
 		System.out.println("Introduce el campo a buscar: ");
 		return Main.sc.nextLine();
 	}
-	
+
 	public static double askForDoubleValue() {
 		System.out.println("Introduce el valor: ");
 		return Main.checkDoubleInput();
 	}
-	
+
 	public static String askForStringValue() {
 		System.out.println("Introduce el valor: ");
 		return Main.sc.nextLine();
 	}
-	
+
+	public static <T> int askForAction(T t) {
+		System.out.println("Selecciona operador: ");
+		System.out.println("1 - Igual (=)");
+		System.out.println("2 - Diferente (!=)");
+		if (t instanceof Double) {
+			System.out.println("3 - Mayor que (>)");
+			System.out.println("4 - Mayor o igual que (>=)");
+			System.out.println("5 - Menos que (<)");
+			System.out.println("6 - Menor o igual que (<=)");
+		}
+		int option = Main.checkIntInput();
+		switch (option) {
+		case 1:
+			return ConnectMongo.IGUAL;
+		case 2:
+			return ConnectMongo.DIFERENTE;
+		}
+		if (t instanceof Double) {
+			switch (option) {
+			case 3:
+				return ConnectMongo.MAYOR;
+			case 4:
+				return ConnectMongo.MAYORIGUAL;
+			case 5:
+				return ConnectMongo.MENOR;
+			case 6:
+				return ConnectMongo.MENORIGUAL;
+			}
+		}
+		System.out.println("La opción no está en la lista, volviendo al menú...");
+		return 0;
+	}
+
 	public static Document askForPlatformObject() {
 		return ConnectMongo.getConsolaByName(ConnectMongo.askForExistingPlatformName());
 	}

@@ -1,8 +1,10 @@
 package mongoManager;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
@@ -18,7 +20,13 @@ public class ConnectMongo {
 
 	public static final int CONSOLAS = 0x00001f;
 	public static final int JUEGOS = 0x00002f;
-
+	
+	public static final int IGUAL = 0x00011f;
+	public static final int DIFERENTE = 0x00012f;
+	public static final int MAYOR = 0x00013f;
+	public static final int MAYORIGUAL = 0x00014f;
+	public static final int MENOR = 0x00015f;
+	public static final int MENORIGUAL = 0x00016f;
 	private static MongoClientURI uri;
 
 	private static MongoClient mongoClient;
@@ -198,19 +206,16 @@ public class ConnectMongo {
 		}
 	}
 
-	public static void findObject(int collection, String field, String value) {
+	public static <T> void findObject(int collection, String field, T value) {
 		FindIterable<Document> iterable = getMongoCollection(collection).find(Filters.eq(field, value));
+		boolean elementFind = false;
 		for(Document d : iterable) {
+			elementFind = true;
 			printDocument(collection, d);
 		}
-	}
-
-	public static void findObject(int collection, String field, double value) {
-
-	}
-
-	public static void findObject(int collection, String field, Document value) {
-
+		if(!elementFind) {
+			System.out.println("No hay resultados...");
+		}
 	}
 	
 	public static void printDocument(int collection, Document d) {
@@ -221,6 +226,33 @@ public class ConnectMongo {
 			System.out.println("Plataforma: " + ((Document) d.get("plataforma")).getString("nombre"));
 		}
 		System.out.println("-------------------");
+	}
+	
+	public static Bson returnFilter(int operador, String field, Object value) {
+		switch(operador) {
+		case IGUAL:
+			return Filters.eq(field, value);
+		case DIFERENTE:
+			return Filters.ne(field, value);
+		case MAYOR:
+			return Filters.gt(field, value);
+		case MAYORIGUAL:
+			return Filters.gte(field, value);
+		case MENOR:
+			return Filters.lt(field, value);
+		case MENORIGUAL:
+			return Filters.lte(field, value);
+		}
+		return null;
+	}
+	
+	public static void applyFiltersAndPrint(int collection, ArrayList<Bson> filters) {
+		Bson allFilters = Filters.and(filters);
+		FindIterable<Document> docsToFilter = getMongoCollection(collection).find(allFilters);
+		
+		for(Document d : docsToFilter) {
+			printDocument(collection, d);
+		}
 	}
 
 	public static void closeClient() {
